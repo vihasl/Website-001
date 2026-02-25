@@ -1,0 +1,1060 @@
+<?php
+session_start();
+include 'db_connect.php';
+
+$user_name = ''; // Default empty
+if (isset($_SESSION['user_id'])) {
+    $stmt = $conn->prepare("SELECT name FROM users WHERE id = ?");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $stmt->bind_result($user_name);
+    $stmt->fetch();
+    $stmt->close();
+}
+$conn->close();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImSata — Discord Bots & Web Development</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #080b10;
+    --bg-base: #0d1117;
+    --bg-card: #111720;
+    --bg-card2: #141c27;
+    --bg-surface: #1a2333;
+    --bg-hover: #1e2a3a;
+    --accent-blue: #5865f2;
+    --accent-cyan: #00d4ff;
+    --accent-green: #23d18b;
+    --accent-purple: #9b59b6;
+    --accent-gold: #ffd700;
+    --text-primary: #e8ecf0;
+    --text-secondary: #8b9ab0;
+    --text-muted: #4a5568;
+    --border: rgba(255,255,255,0.06);
+    --border-accent: rgba(88,101,242,0.4);
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg-void); color: var(--text-primary); overflow-x: hidden; line-height: 1.6; }
+  #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg-void); }
+  ::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 3px; }
+
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 1000;
+    padding: 0 2rem; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(8,11,16,0.8); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border); transition: all 0.3s;
+  }
+  nav.scrolled { background: rgba(8,11,16,0.97); border-bottom-color: var(--border-accent); }
+  .nav-logo {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem;
+    letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem;
+    text-decoration: none; color: var(--text-primary);
+  }
+  .logo-icon {
+    width: 32px; height: 32px; background: var(--accent-blue); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    box-shadow: 0 0 20px rgba(88,101,242,0.5);
+  }
+  .nav-links { display: flex; align-items: center; gap: 0.25rem; list-style: none; }
+  .nav-links a {
+    color: var(--text-secondary); text-decoration: none; padding: 0.4rem 0.9rem;
+    border-radius: 8px; font-size: 0.875rem; font-weight: 500; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--text-primary); background: var(--bg-hover); }
+  .nav-cta {
+    background: var(--accent-blue) !important; color: #fff !important;
+    font-weight: 600 !important; box-shadow: 0 0 20px rgba(88,101,242,0.3);
+  }
+  .nav-cta:hover { box-shadow: 0 0 32px rgba(88,101,242,0.6) !important; }
+  .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; }
+  .hamburger span { width: 24px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: all 0.3s; }
+
+  section { position: relative; z-index: 1; }
+  .container { max-width: 1160px; margin: 0 auto; padding: 0 2rem; }
+
+  /* HERO */
+  #hero { min-height: 100vh; display: flex; align-items: center; padding-top: 64px; overflow: hidden; }
+  .hero-inner { padding: 6rem 0 4rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(88,101,242,0.12); border: 1px solid rgba(88,101,242,0.3);
+    border-radius: 100px; padding: 0.35rem 1rem; font-size: 0.8rem;
+    font-family: 'DM Mono', monospace; color: var(--accent-cyan); margin-bottom: 1.5rem;
+    animation: fadeUp 0.6s 0.1s both;
+  }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.4); } }
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.1;
+    letter-spacing: -0.03em; margin-bottom: 1.5rem;
+    animation: fadeUp 0.6s 0.2s both;
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-desc { font-size: 1.05rem; color: var(--text-secondary); max-width: 520px; margin-bottom: 2.5rem; line-height: 1.7; font-weight: 300; animation: fadeUp 0.6s 0.3s both; }
+  .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; animation: fadeUp 0.6s 0.4s both; }
+  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1.8rem; border-radius: 10px; font-size: 0.95rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.25s; font-family: 'DM Sans', sans-serif; }
+  .btn-primary { background: var(--accent-blue); color: #fff; box-shadow: 0 0 30px rgba(88,101,242,0.4); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(88,101,242,0.65); }
+  .btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-accent); transform: translateY(-2px); }
+  .btn-outline { background: transparent; color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.3); }
+  .btn-outline:hover { background: rgba(0,212,255,0.08); border-color: var(--accent-cyan); transform: translateY(-2px); }
+  .hero-visual { animation: fadeUp 0.6s 0.5s both; }
+  .hero-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; position: relative; overflow: hidden; }
+  .hero-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(88,101,242,0.07) 0%, transparent 60%); pointer-events: none; }
+  .card-header { display: flex; align-items: center; gap: 0.6rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+  .card-title { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--text-muted); }
+  .code-block { font-family: 'DM Mono', monospace; font-size: 0.78rem; line-height: 1.85; }
+  .code-line { display: flex; gap: 1rem; }
+  .ln { color: var(--text-muted); user-select: none; width: 16px; text-align: right; flex-shrink: 0; }
+  .kw { color: #c792ea; } .fn { color: var(--accent-cyan); } .st { color: var(--accent-green); }
+  .cm { color: #546e7a; font-style: italic; } .op { color: #89ddff; }
+  .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+  .stat-box { background: var(--bg-card2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; transition: all 0.25s; }
+  .stat-box:hover { border-color: var(--border-accent); background: var(--bg-hover); }
+  .stat-num { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.5rem; color: var(--accent-blue); }
+  .stat-lbl { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+
+  /* SHARED */
+  .section-header { text-align: center; margin-bottom: 4rem; }
+  .section-tag { display: inline-block; font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent-cyan); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); padding: 0.3rem 0.9rem; border-radius: 100px; margin-bottom: 1rem; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 0.75rem; }
+  .section-sub { font-size: 1rem; color: var(--text-secondary); max-width: 560px; margin: 0 auto; font-weight: 300; }
+  .section-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent); margin: 0 2rem; position: relative; z-index: 1; }
+
+  /* ABOUT */
+  #about { padding: 6rem 0; }
+  .about-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 4rem; align-items: center; }
+  .avatar-ring { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(from 180deg, var(--accent-blue), var(--accent-cyan), var(--accent-purple), var(--accent-blue)); padding: 3px; animation: spinRing 6s linear infinite; margin: 0 auto; }
+  @keyframes spinRing { to { transform: rotate(360deg); } }
+  .avatar-inner { width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, var(--bg-surface), var(--bg-card)); display: flex; align-items: center; justify-content: center; font-size: 4.5rem; }
+  .about-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; justify-content: center; }
+  .tech-badge { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.75rem; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-secondary); transition: all 0.2s; }
+  .tech-badge:hover { border-color: var(--accent-blue); color: var(--text-primary); background: var(--bg-hover); }
+  .about-text p { color: var(--text-secondary); line-height: 1.8; margin-bottom: 1rem; font-weight: 300; }
+  .about-text p span { color: var(--text-primary); font-weight: 500; }
+  .feature-list { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .feature-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: var(--text-secondary); }
+  .feature-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; }
+
+  /* SERVICES */
+  #services { padding: 6rem 0; background: linear-gradient(180deg, transparent, rgba(88,101,242,0.03) 50%, transparent); }
+  .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .service-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; position: relative; overflow: hidden; transition: all 0.3s; }
+  .service-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--card-line); opacity: 0; transition: opacity 0.3s; }
+  .service-card:hover { border-color: var(--border-accent); transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .service-card:hover::before { opacity: 1; }
+  .service-icon { width: 52px; height: 52px; border-radius: 14px; background: var(--icon-bg); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1.25rem; }
+  .service-card h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.15rem; margin-bottom: 0.75rem; }
+  .service-card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.25rem; font-weight: 300; }
+  .service-features { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+  .service-features li { font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; }
+  .service-features li::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--bullet-color); flex-shrink: 0; }
+
+  /* PORTFOLIO */
+  #portfolio { padding: 6rem 0; }
+  .portfolio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .portfolio-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all 0.3s; }
+  .portfolio-card:hover { border-color: var(--border-accent); transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  .port-preview { height: 160px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+  .port-preview-inner { position: absolute; inset: 0; transition: transform 0.4s; }
+  .portfolio-card:hover .port-preview-inner { transform: scale(1.06); }
+  .port-body { padding: 1.25rem; }
+  .port-tag { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+  .port-body h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
+  .port-body p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1rem; font-weight: 300; }
+  .port-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .port-link { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; padding: 0.3rem 0.7rem; border-radius: 7px; text-decoration: none; border: 1px solid var(--border); color: var(--text-secondary); transition: all 0.2s; }
+  .port-link:hover { border-color: var(--accent-blue); color: var(--text-primary); background: rgba(88,101,242,0.1); }
+
+  /* PRICING */
+  #pricing { padding: 6rem 0; background: linear-gradient(180deg, transparent, rgba(0,212,255,0.02) 50%, transparent); }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start; }
+  .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; position: relative; transition: all 0.3s; }
+  .pricing-card:hover { transform: translateY(-4px); }
+  .pricing-card.featured { background: linear-gradient(145deg, rgba(88,101,242,0.12) 0%, var(--bg-card) 60%); border-color: var(--accent-blue); box-shadow: 0 0 40px rgba(88,101,242,0.18); }
+  .pricing-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent-blue); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.25rem 1rem; border-radius: 100px; letter-spacing: 0.05em; white-space: nowrap; }
+  .plan-name { font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.75rem; }
+  .plan-price { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.8rem; letter-spacing: -0.03em; margin-bottom: 0.25rem; line-height: 1; }
+  .plan-price span { font-size: 1.2rem; font-weight: 400; color: var(--text-muted); vertical-align: middle; }
+  .plan-desc { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1.5rem; font-weight: 300; }
+  .plan-sep { height: 1px; background: var(--border); margin: 1.5rem 0; }
+  .plan-features { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.75rem; }
+  .plan-feat { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.82rem; color: var(--text-secondary); }
+  .chk { color: var(--accent-green); flex-shrink: 0; } .x { color: var(--text-muted); flex-shrink: 0; }
+
+  /* TESTIMONIALS */
+  #testimonials { padding: 6rem 0; }
+  .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .testimonial-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; transition: all 0.3s; }
+  .testimonial-card:hover { border-color: var(--border-accent); transform: translateY(-3px); }
+  .stars { color: var(--accent-gold); font-size: 0.85rem; margin-bottom: 1rem; letter-spacing: 2px; }
+  .testimonial-text { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8; font-style: italic; margin-bottom: 1.25rem; font-weight: 300; }
+  .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+  .author-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .author-name { font-size: 0.875rem; font-weight: 600; }
+  .author-role { font-size: 0.72rem; color: var(--text-muted); }
+  .discord-badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; font-family: 'DM Mono', monospace; color: #7289da; background: rgba(114,137,218,0.1); border: 1px solid rgba(114,137,218,0.2); padding: 0.2rem 0.5rem; border-radius: 4px; margin-top: 0.25rem; }
+
+  /* TECH STACK */
+  #stack { padding: 5rem 0; }
+  .stack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .stack-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; transition: all 0.25s; }
+  .stack-item:hover { border-color: var(--border-accent); background: var(--bg-hover); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
+  .stack-icon { font-size: 2rem; line-height: 1; }
+  .stack-name { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--text-secondary); }
+
+  /* FAQ */
+  #faq { padding: 6rem 0; }
+  .faq-grid { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; }
+  .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.2s; }
+  .faq-item.open { border-color: var(--border-accent); }
+  .faq-q { width: 100%; background: none; border: none; color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; text-align: left; padding: 1.1rem 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 1rem; transition: background 0.2s; }
+  .faq-q:hover { background: rgba(255,255,255,0.03); }
+  .faq-icon { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; transition: all 0.3s; }
+  .faq-item.open .faq-icon { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; transform: rotate(45deg); }
+  .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s; padding: 0 1.25rem; }
+  .faq-item.open .faq-a { max-height: 200px; padding: 0 1.25rem 1.1rem; }
+  .faq-a p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8; font-weight: 300; }
+
+  /* CONTACT */
+  #contact { padding: 6rem 0; }
+  .contact-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 3rem; align-items: start; }
+  .contact-info h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.4rem; margin-bottom: 1rem; }
+  .contact-info p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8; margin-bottom: 2rem; font-weight: 300; }
+  .contact-links { display: flex; flex-direction: column; gap: 0.75rem; }
+  .contact-link { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text-secondary); font-size: 0.875rem; padding: 0.75rem 1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.2s; }
+  .contact-link:hover { border-color: var(--border-accent); color: var(--text-primary); background: var(--bg-hover); }
+  .contact-link-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .form-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; }
+  .form-group { margin-bottom: 1.25rem; }
+  .form-label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; font-family: 'DM Mono', monospace; }
+  .form-input, .form-textarea, .form-select { width: 100%; background: var(--bg-base); border: 1px solid var(--border); border-radius: 9px; padding: 0.75rem 1rem; color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; transition: all 0.2s; outline: none; }
+  .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(88,101,242,0.15); }
+  .form-textarea { resize: vertical; min-height: 120px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-submit { width: 100%; background: var(--accent-blue); color: #fff; border: none; border-radius: 10px; padding: 0.9rem; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; }
+  .form-submit:hover { background: #4752c4; box-shadow: 0 0 30px rgba(88,101,242,0.4); transform: translateY(-1px); }
+
+  /* TABLE */
+  #compare { padding: 6rem 0; background: linear-gradient(180deg, transparent, rgba(88,101,242,0.03) 50%, transparent); }
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  thead { background: var(--bg-card2); }
+  th, td { padding: 0.9rem 1.25rem; text-align: center; border-bottom: 1px solid var(--border); }
+  th { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); }
+  td { color: var(--text-secondary); font-size: 0.82rem; }
+  td:first-child { text-align: left; font-weight: 500; color: var(--text-primary); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .check { color: var(--accent-green); font-size: 1rem; }
+  .cross { color: var(--text-muted); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); padding: 2.5rem; max-width: 500px; width: 90%; position: relative; animation: modalIn 0.3s both; }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.93) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+  .modal-close { position: absolute; top: 1rem; right: 1rem; background: var(--bg-surface); border: none; color: var(--text-muted); width: 28px; height: 28px; border-radius: 7px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .modal h2 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.4rem; margin-bottom: 0.5rem; }
+  .modal > p { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+  /* FLOATING */
+  .floating-btn { position: fixed; bottom: 2rem; right: 2rem; z-index: 500; background: var(--accent-blue); color: #fff; border: none; border-radius: 100px; padding: 0.75rem 1.5rem; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.875rem; cursor: pointer; box-shadow: 0 4px 24px rgba(88,101,242,0.5); transition: all 0.25s; display: flex; align-items: center; gap: 0.5rem; }
+  .floating-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(88,101,242,0.7); }
+
+  /* FOOTER */
+  footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; position: relative; z-index: 1; }
+  footer a { color: var(--accent-blue); text-decoration: none; }
+
+  /* REVEAL */
+  .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s, transform 0.6s; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* RESPONSIVE */
+  @media (max-width: 1024px) {
+    .services-grid, .portfolio-grid, .pricing-grid, .testimonials-grid, .stack-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .hero-inner, .about-grid, .contact-grid { grid-template-columns: 1fr; }
+    .hero-visual { order: -1; }
+    .services-grid, .portfolio-grid, .pricing-grid, .testimonials-grid { grid-template-columns: 1fr; }
+    .stack-grid { grid-template-columns: repeat(3, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .hamburger { display: flex; }
+    .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: rgba(8,11,16,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 1rem; gap: 0.25rem; }
+  }
+  @media (max-width: 480px) {
+    .stack-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-stats { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#" class="nav-logo">
+    
+    ImSata
+  </a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#portfolio">Portfolio</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#contact" class="nav-cta">Hire Me →</a></li>
+    <?php if (!isset($_SESSION['user_id'])): ?>
+      <li><a href="register.php">Register</a></li>
+      <li><a href="login.php">Sign In</a></li>
+    <?php else: ?>
+      <li><a href="#"><?php echo htmlspecialchars($user_name); ?></a></li>
+      <li><a href="logout.php">Logout</a></li>
+    <?php endif; ?>
+  </ul>
+  <div class="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-badge">
+          <div class="pulse-dot"></div>
+          Available for projects
+        </div>
+        <h1 class="hero-title">
+          Custom Discord Bots &amp;<br>
+          <span class="gradient-text">Server Setup</span> for<br>
+          Communities &amp; Businesses
+        </h1>
+        <p class="hero-desc">Building scalable, secure automation systems — from powerful Discord bots to full-stack web platforms — that grow with your community.</p>
+        <div class="hero-btns">
+          <a href="#contact" class="btn btn-primary">⚡ Hire Me</a>
+          <a href="#portfolio" class="btn btn-secondary">View Portfolio</a>
+          <a href="#contact" class="btn btn-outline">Contact Me</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-card">
+          <div class="card-header">
+            <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            <div class="card-title">bot/moderation.py</div>
+          </div>
+          <div class="code-block">
+            <div class="code-line"><span class="ln">1</span><span><span class="kw">import</span> discord<span class="op">,</span> asyncio</span></div>
+            <div class="code-line"><span class="ln">2</span><span><span class="kw">from</span> discord.ext <span class="kw">import</span> commands</span></div>
+            <div class="code-line"><span class="ln">3</span><span>&nbsp;</span></div>
+            <div class="code-line"><span class="ln">4</span><span><span class="cm"># ✨ Custom Moderation Bot</span></span></div>
+            <div class="code-line"><span class="ln">5</span><span><span class="kw">class</span> <span class="fn">ModerationBot</span><span class="op">(commands.Cog):</span></span></div>
+            <div class="code-line"><span class="ln">6</span><span>&nbsp;&nbsp;<span class="op">@</span><span class="fn">commands.command</span><span class="op">()</span></span></div>
+            <div class="code-line"><span class="ln">7</span><span>&nbsp;&nbsp;<span class="kw">async def</span> <span class="fn">ban</span><span class="op">(</span>self<span class="op">,</span> ctx<span class="op">,</span> user<span class="op">):</span></span></div>
+            <div class="code-line"><span class="ln">8</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> user.<span class="fn">ban</span><span class="op">()</span></span></div>
+            <div class="code-line"><span class="ln">9</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ctx.<span class="fn">send</span><span class="op">(</span><span class="st">f"✅ Banned {'{user.name}'}"</span><span class="op">)</span></span></div>
+            <div class="code-line"><span class="ln">10</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">log_action</span><span class="op">(</span><span class="st">"BAN"</span><span class="op">,</span> user<span class="op">,</span> ctx<span class="op">)</span></span></div>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-box"><div class="stat-num">40+</div><div class="stat-lbl">Bots Built</div></div>
+          <div class="stat-box"><div class="stat-num">120+</div><div class="stat-lbl">Servers Setup</div></div>
+          <div class="stat-box"><div class="stat-num">98%</div><div class="stat-lbl">Satisfaction</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="container">
+    <div class="about-grid reveal">
+      <div style="text-align:center;">
+        <div class="avatar-ring">
+          <div class="avatar-inner">👨‍💻</div>
+        </div>
+        <div class="about-badges">
+          <span class="tech-badge">🐍 Python</span>
+          <span class="tech-badge">🤖 Discord.py</span>
+          <span class="tech-badge">📦 Node.js</span>
+          <span class="tech-badge">⚡ FastAPI</span>
+          <span class="tech-badge">🌐 HTML/CSS</span>
+          <span class="tech-badge">🗃️ MongoDB</span>
+          <span class="tech-badge">🔧 Git</span>
+          <span class="tech-badge">☁️ VPS</span>
+        </div>
+      </div>
+      <div class="about-text">
+        <div class="section-tag">About Me</div>
+        <h2 class="section-title">Building Bots That <span style="color:var(--accent-cyan)">Actually Work</span></h2>
+        <p>I'm <span>Vihandu Marasinghe</span>, a freelance developer specializing in <span>Discord bot development, server architecture, and web applications</span>. With years of hands-on experience building production-grade systems for communities and businesses, I deliver reliable, scalable solutions — not just code.</p>
+        <p>My approach: understand your problem deeply, build clean solutions that scale, and provide <span>post-delivery support</span> so your system keeps running smoothly. Every bot I build is custom-crafted, thoroughly tested, and documented.</p>
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(88,101,242,0.15)">🛡️</div>
+            Secure, production-ready code with proper error handling &amp; logging
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(35,209,139,0.15)">📈</div>
+            Scalable architecture designed to handle thousands of users
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(0,212,255,0.12)">🚀</div>
+            Fast turnaround with clear communication throughout the project
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">What I Build</div>
+      <h2 class="section-title">Services</h2>
+      <p class="section-sub">End-to-end solutions from Discord automation to full-stack web platforms. Everything your community or business needs.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card reveal" style="--card-line: linear-gradient(90deg,#5865f2,#7289da); --icon-bg: rgba(88,101,242,0.15); --bullet-color: #5865f2;">
+        <div class="service-icon">🤖</div>
+        <h3>Discord Bot Development</h3>
+        <p>Fully custom Discord bots built with Python &amp; Discord.py — from simple utilities to complex multi-feature automation engines with dashboards.</p>
+        <ul class="service-features">
+          <li>Moderation &amp; anti-spam systems</li>
+          <li>Economy &amp; leveling systems</li>
+          <li>Ticket &amp; support systems</li>
+          <li>AI-powered bots (GPT integration)</li>
+          <li>API integrations (weather, crypto, gaming)</li>
+          <li>Bot dashboards &amp; web panels</li>
+          <li>Music &amp; entertainment bots</li>
+        </ul>
+      </div>
+      <div class="service-card reveal" style="--card-line: linear-gradient(90deg,#23d18b,#00d4ff); --icon-bg: rgba(35,209,139,0.15); --bullet-color: #23d18b;">
+        <div class="service-icon">🏗️</div>
+        <h3>Discord Server Setup</h3>
+        <p>Professional server architecture designed to grow with your community — structured, secure, and on-brand from day one.</p>
+        <ul class="service-features">
+          <li>Role &amp; permission systems</li>
+          <li>Auto-moderation configuration</li>
+          <li>Channel organization &amp; structure</li>
+          <li>Server branding &amp; visual design</li>
+          <li>Security hardening &amp; verification</li>
+          <li>Onboarding &amp; welcome flows</li>
+          <li>Bots configuration &amp; integration</li>
+        </ul>
+      </div>
+      <div class="service-card reveal" style="--card-line: linear-gradient(90deg,#00d4ff,#9b59b6); --icon-bg: rgba(0,212,255,0.12); --bullet-color: #00d4ff;">
+        <div class="service-icon">💻</div>
+        <h3>Web Development</h3>
+        <p>Clean, fast, modern websites and web applications — from landing pages to full-stack dashboards with database backends and Discord OAuth.</p>
+        <ul class="service-features">
+          <li>Portfolio &amp; business websites</li>
+          <li>Bot dashboards &amp; admin panels</li>
+          <li>Landing pages &amp; conversion sites</li>
+          <li>Flask / FastAPI backend APIs</li>
+          <li>Database design (MongoDB, MySQL)</li>
+          <li>Discord OAuth integration</li>
+          <li>VPS deployment &amp; hosting setup</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- PORTFOLIO -->
+<section id="portfolio">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">My Work</div>
+      <h2 class="section-title">Portfolio</h2>
+      <p class="section-sub">A selection of Discord bots, dashboards, and web projects delivered for real communities and businesses.</p>
+    </div>
+    <div class="portfolio-grid">
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#1a1f36,#5865f2)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(88,101,242,0.3),rgba(114,137,218,0.1))"></div>🛡️
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Discord Bot</div>
+          <h3>GuardianBot Pro</h3>
+          <p>Advanced moderation bot with ML-based spam detection, auto-ban, appeal system, and a full web dashboard. Protecting 50,000+ members.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">⬡ GitHub</a>
+            <a href="#" class="port-link">🔗 Demo</a>
+            <a href="#" class="port-link">✚ Invite</a>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#1a2b1f,#23d18b)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(35,209,139,0.25),rgba(0,212,255,0.08))"></div>💰
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Discord Bot</div>
+          <h3>EconomyCore</h3>
+          <p>Full economy system with shop, inventory, gambling, robbing, jobs, and leaderboards. Includes admin controls and economy balancing tools.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">⬡ GitHub</a>
+            <a href="#" class="port-link">✚ Invite</a>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#1a1a2e,#9b59b6)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(88,101,242,0.08))"></div>🎫
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Discord Bot</div>
+          <h3>TicketMaster</h3>
+          <p>Professional ticket support system with categories, auto-assign, transcripts, SLA tracking, and Slack/Notion integration for teams.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">⬡ GitHub</a>
+            <a href="#" class="port-link">🔗 Demo</a>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#1a1610,#c8a000)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.05))"></div>📊
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Web Dashboard</div>
+          <h3>BotPanel Dashboard</h3>
+          <p>Real-time Discord bot management dashboard with Discord OAuth, live statistics, command editor, and user management. Built with Flask + React.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">⬡ GitHub</a>
+            <a href="#" class="port-link">🔗 Live Demo</a>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#0f1a24,#00d4ff)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(0,212,255,0.2),transparent)"></div>🤖
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Discord Bot</div>
+          <h3>AI Assistant Bot</h3>
+          <p>GPT-4 powered bot with conversation history, custom personalities per channel, image generation, and per-server configuration.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">✚ Invite</a>
+          </div>
+        </div>
+      </div>
+      <div class="portfolio-card reveal">
+        <div class="port-preview" style="background:linear-gradient(135deg,#1a1020,#e91e63)">
+          <div class="port-preview-inner" style="background:linear-gradient(135deg,rgba(233,30,99,0.2),transparent)"></div>🌐
+        </div>
+        <div class="port-body">
+          <div class="port-tag">Web Development</div>
+          <h3>GamingClan Website</h3>
+          <p>Full-stack clan website with member portal, tournament brackets, Discord bot integration, shop, and admin panel. FastAPI + vanilla JS.</p>
+          <div class="port-links">
+            <a href="#" class="port-link">🔗 Live Site</a>
+            <a href="#" class="port-link">⬡ GitHub</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">Pricing</div>
+      <h2 class="section-title">Simple, Transparent Pricing</h2>
+      <p class="section-sub">No hidden fees. All projects include source code, documentation, and post-delivery support.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card reveal">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">$25<span>+</span></div>
+        <div class="plan-desc">Perfect for small communities needing a simple bot or starter server setup.</div>
+        <div class="plan-sep"></div>
+        <div class="plan-features">
+          <div class="plan-feat"><span class="chk">✓</span> Up to 10 bot commands</div>
+          <div class="plan-feat"><span class="chk">✓</span> Basic moderation features</div>
+          <div class="plan-feat"><span class="chk">✓</span> 1 week delivery</div>
+          <div class="plan-feat"><span class="chk">✓</span> Source code included</div>
+          <div class="plan-feat"><span class="chk">✓</span> Basic documentation</div>
+          <div class="plan-feat"><span class="x">✗</span> Web dashboard</div>
+          <div class="plan-feat"><span class="x">✗</span> Database integration</div>
+        </div>
+        <a href="#contact" class="btn btn-secondary" style="width:100%;justify-content:center;">Get Started</a>
+      </div>
+      <div class="pricing-card featured reveal">
+        <div class="pricing-badge">⭐ Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price" style="color:var(--accent-blue)">$50<span>+</span></div>
+        <div class="plan-desc">For serious communities and businesses needing a robust, feature-rich solution.</div>
+        <div class="plan-sep"></div>
+        <div class="plan-features">
+          <div class="plan-feat"><span class="chk">✓</span> 30+ custom commands</div>
+          <div class="plan-feat"><span class="chk">✓</span> Full moderation suite</div>
+          <div class="plan-feat"><span class="chk">✓</span> Economy / leveling / tickets</div>
+          <div class="plan-feat"><span class="chk">✓</span> Database integration (MongoDB)</div>
+          <div class="plan-feat"><span class="chk">✓</span> 2 API integrations</div>
+          <div class="plan-feat"><span class="chk">✓</span> 2 weeks post-support</div>
+          <div class="plan-feat"><span class="x">✗</span> Web dashboard</div>
+        </div>
+        <a href="#contact" class="btn btn-primary" style="width:100%;justify-content:center;">Get Started</a>
+      </div>
+      <div class="pricing-card reveal">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price" style="color:var(--accent-cyan)">$80<span>+</span></div>
+        <div class="plan-desc">Full-scale automation system with web dashboard, custom APIs, and hosting setup.</div>
+        <div class="plan-sep"></div>
+        <div class="plan-features">
+          <div class="plan-feat"><span class="chk">✓</span> Unlimited commands</div>
+          <div class="plan-feat"><span class="chk">✓</span> Full-featured web dashboard</div>
+          <div class="plan-feat"><span class="chk">✓</span> Discord OAuth integration</div>
+          <div class="plan-feat"><span class="chk">✓</span> Unlimited API integrations</div>
+          <div class="plan-feat"><span class="chk">✓</span> VPS deployment &amp; hosting</div>
+          <div class="plan-feat"><span class="chk">✓</span> AI / GPT integration</div>
+          <div class="plan-feat"><span class="chk">✓</span> 1 month post-support</div>
+        </div>
+        <a href="#contact" class="btn btn-outline" style="width:100%;justify-content:center;">Get Started</a>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:2rem;color:var(--text-muted);font-size:0.8rem">
+      Need something custom? <a href="#contact" style="color:var(--accent-blue);text-decoration:none">Request a quote →</a>
+    </p>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- COMPARISON TABLE -->
+<section id="compare">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">Compare Plans</div>
+      <h2 class="section-title">Feature Comparison</h2>
+    </div>
+    <div class="table-wrap reveal">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">Feature</th>
+            <th>Basic</th>
+            <th style="color:var(--accent-blue)">Pro ⭐</th>
+            <th>Premium</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Custom commands</td><td>Up to 10</td><td>Up to 30</td><td>Unlimited</td></tr>
+          <tr><td>Database (MongoDB/MySQL)</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+          <tr><td>Economy / Leveling system</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+          <tr><td>Ticket system</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+          <tr><td>API integrations</td><td class="cross">✗</td><td>Up to 2</td><td>Unlimited</td></tr>
+          <tr><td>Web dashboard</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>Discord OAuth</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>AI / GPT integration</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>VPS deployment</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+          <tr><td>Post-delivery support</td><td>3 days</td><td>2 weeks</td><td>1 month</td></tr>
+          <tr><td>Delivery time</td><td>~1 week</td><td>~2 weeks</td><td>~4 weeks</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">Social Proof</div>
+      <h2 class="section-title">Client Reviews</h2>
+      <p class="section-sub">Real feedback from real clients. Genuine experiences, every time.</p>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"Absolutely blew my expectations. The moderation bot DevNode built for our 30k-member server has been running flawlessly for 6 months. Zero downtime, great code, and even better support."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(88,101,242,0.2)">🎮</div>
+          <div><div class="author-name">Marcus T.</div><div class="author-role">Gaming Community Owner</div><div class="discord-badge">⊹ Verified via Discord</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"We needed a complex economy system with a web dashboard in 3 weeks. DevNode delivered in 2. The code is clean, documented, and the dashboard looks incredible. 10/10 would hire again."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(35,209,139,0.2)">🏆</div>
+          <div><div class="author-name">Sarah K.</div><div class="author-role">Server Admin · 50k members</div><div class="discord-badge">⊹ Verified via Fiverr</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"Our clan website + Discord integration is exactly what we envisioned. DevNode was communicative, professional, and delivered something far beyond what we paid for."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(0,212,255,0.2)">⚔️</div>
+          <div><div class="author-name">Jake R.</div><div class="author-role">eSports Team Lead</div><div class="discord-badge">⊹ Verified via Discord</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"Set up our entire server from scratch — channels, roles, bots, auto-mod, everything. It's a professional community now instead of a chaotic mess. Worth every penny."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(255,215,0,0.2)">🎨</div>
+          <div><div class="author-name">Priya M.</div><div class="author-role">Creative Community Founder</div><div class="discord-badge">⊹ Verified via Upwork</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"The AI bot integrates perfectly with our workflow. GPT-4 responses, custom prompts per channel, image generation — our members absolutely love it. Fast and professional."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(155,89,182,0.2)">🤖</div>
+          <div><div class="author-name">Leo F.</div><div class="author-role">Tech Community Owner</div><div class="discord-badge">⊹ Verified via Discord</div></div>
+        </div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="stars">★★★★★</div>
+        <div class="testimonial-text">"Delivered a fully functional ticket bot with web transcripts in under a week. Our support team's efficiency has tripled. The code is well-structured and easy to customize."</div>
+        <div class="testimonial-author">
+          <div class="author-avatar" style="background:rgba(233,30,99,0.2)">🎯</div>
+          <div><div class="author-name">Aisha N.</div><div class="author-role">Business Server Owner</div><div class="discord-badge">⊹ Verified via Fiverr</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- TECH STACK -->
+<section id="stack">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">Technologies</div>
+      <h2 class="section-title">Tech Stack</h2>
+    </div>
+    <div class="stack-grid reveal">
+      <div class="stack-item"><div class="stack-icon">🐍</div><div class="stack-name">Python</div></div>
+      <div class="stack-item"><div class="stack-icon">🤖</div><div class="stack-name">Discord.py</div></div>
+      <div class="stack-item"><div class="stack-icon">📦</div><div class="stack-name">Node.js</div></div>
+      <div class="stack-item"><div class="stack-icon">⚡</div><div class="stack-name">FastAPI</div></div>
+      <div class="stack-item"><div class="stack-icon">🌶️</div><div class="stack-name">Flask</div></div>
+      <div class="stack-item"><div class="stack-icon">🍃</div><div class="stack-name">MongoDB</div></div>
+      <div class="stack-item"><div class="stack-icon">🐬</div><div class="stack-name">MySQL</div></div>
+      <div class="stack-item"><div class="stack-icon">🌐</div><div class="stack-name">HTML/CSS</div></div>
+      <div class="stack-item"><div class="stack-icon">💛</div><div class="stack-name">JavaScript</div></div>
+      <div class="stack-item"><div class="stack-icon">🐙</div><div class="stack-name">Git/GitHub</div></div>
+      <div class="stack-item"><div class="stack-icon">☁️</div><div class="stack-name">VPS/Linux</div></div>
+      <div class="stack-item"><div class="stack-icon">🐳</div><div class="stack-name">Docker</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">FAQ</div>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+    </div>
+    <div class="faq-grid reveal">
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">How long does it take to build a custom Discord bot?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>Simple bots (10–15 commands) typically take 3–7 days. Medium complexity bots with databases take 1–2 weeks. Large-scale bots with web dashboards, AI integration, and multiple APIs can take 3–6 weeks. I provide a specific estimate after reviewing your requirements.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Do I get the source code after the project?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>Yes, absolutely. You receive full ownership of the source code, along with setup documentation. I don't retain any rights to your custom code — it's 100% yours to use, modify, and redistribute as you see fit.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Can you host the bot for me?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>Yes. With the Premium plan (or as an add-on), I can deploy and configure your bot on a VPS, set up process managers for 24/7 uptime, configure domain and SSL for dashboards, and provide documentation for long-term self-management.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What if I need changes after the project is delivered?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>All plans include post-delivery support (3 days to 1 month depending on plan) for bug fixes and minor adjustments. Feature additions after delivery are quoted separately at a fair hourly rate. I also offer ongoing maintenance retainers for larger projects.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Do you work with JavaScript / discord.js bots too?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>Yes. While Python/Discord.py is my primary stack, I also work with Node.js and discord.js for projects where it's a better fit or where the client has an existing JS codebase. I can also maintain or extend existing bots in either language.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">How do I get started?<div class="faq-icon">+</div></button>
+        <div class="faq-a"><p>Fill out the contact form below, send me a Discord message, or click "Request a Quote." I'll review your requirements and respond within 24 hours with a detailed scope, timeline, and quote. No commitments required for the initial consultation.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">Let's Work Together</div>
+      <h2 class="section-title">Get In Touch</h2>
+      <p class="section-sub">Have a project in mind? I respond within 24 hours. Let's build something great together.</p>
+    </div>
+    <div class="contact-grid">
+      <div class="reveal">
+        <h3>Start Your Project</h3>
+        <p>Whether you need a simple bot or a full automation platform, I'd love to hear about your project. Fill out the form or reach out directly on any platform below.</p>
+        <div class="contact-links">
+          <a href="#" class="contact-link">
+            <div class="contact-link-icon" style="background:rgba(114,137,218,0.15)">💬</div>
+            <div><div style="font-weight:600;font-size:0.85rem">Discord</div><div style="font-size:0.75rem;color:var(--text-muted)">imsata023</div></div>
+          </a>
+          <a href="mailto:hello@devnode.dev" class="contact-link">
+            <div class="contact-link-icon" style="background:rgba(35,209,139,0.15)">✉️</div>
+            <div><div style="font-weight:600;font-size:0.85rem">Email</div><div style="font-size:0.75rem;color:var(--text-muted)">vihandumarasinghe@gmail.com</div></div>
+          </a>
+          <a href="#" class="contact-link">
+            <div class="contact-link-icon" style="background:rgba(0,212,255,0.1)">⬡</div>
+            <div><div style="font-weight:600;font-size:0.85rem">GitHub</div><div style="font-size:0.75rem;color:var(--text-muted)">github.com/imsata</div></div>
+          </a>
+          <a href="#" class="contact-link">
+            <div class="contact-link-icon" style="background:rgba(0,119,181,0.15)">💬</div>
+            <div><div style="font-weight:600;font-size:0.85rem">WhatsappNo</div><div style="font-size:0.75rem;color:var(--text-muted)">0714026533</div></div>
+          </a>
+          <a href="#" class="contact-link">
+            <div class="contact-link-icon" style="background:rgba(26,179,112,0.15)">🎯</div>
+            <div><div style="font-weight:600;font-size:0.85rem">Fiverr</div><div style="font-size:0.75rem;color:var(--text-muted)">fiverr.com/vihandumarasinghe</div></div>
+          </a>
+        </div>
+      </div>
+      <div class="form-card reveal">
+        <div class="section-tag" style="margin-bottom:1.25rem">Send a Message</div>
+        <form method="POST" action="contact_handler.php">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">name</label>
+              <input type="text" name="name" class="form-input" placeholder="Your name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">email</label>
+              <input type="email" name="email" class="form-input" placeholder="your@email.com">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">service needed</label>
+            <select name="service" class="form-input form-select">
+              <option>Discord Bot Development</option>
+              <option>Discord Server Setup</option>
+              <option>Web Development</option>
+              <option>Custom / Multiple Services</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">project details</label>
+            <textarea name="details" class="form-textarea" placeholder="Describe your project — what do you need, features, timeline, budget..."></textarea>
+          </div>
+          <button type="submit" class="form-submit" id="submitBtn">⚡ Send Message</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div style="margin-bottom:0.75rem">
+    <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--text-secondary)">Vihandu Marasinghe</span>
+    — Custom Discord Bots &amp; Web Development
+  </div>
+  <div>Built with ❤️ and Python &nbsp;·&nbsp; <a href="#">Privacy</a> &nbsp;·&nbsp; <a href="#">Terms</a> &nbsp;·&nbsp; © 2024 ImSata. All rights reserved.</div>
+</footer>
+
+<!-- FLOATING BUTTON -->
+<button class="floating-btn" onclick="openModal()">⚡ Request a Quote</button>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="quoteModal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="section-tag" style="margin-bottom:0.75rem">Quick Quote</div>
+    <h2>Request a Quote</h2>
+    <p>Tell me about your project and I'll respond with a detailed quote within 24 hours.</p>
+    <form method="POST" action="quote_handler.php">
+      <div class="form-group">
+        <label class="form-label">project type</label>
+        <select name="project_type" class="form-input form-select">
+          <option>Discord Bot Development</option>
+          <option>Discord Server Setup</option>
+          <option>Web Development</option>
+          <option>Full Package</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">budget range</label>
+        <select name="budget_range" class="form-input form-select">
+          <option>$49 – $99 (Basic)</option>
+          <option>$100 – $249 (Pro)</option>
+          <option>$250 – $500 (Premium)</option>
+          <option>$500+ (Enterprise)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">brief description</label>
+        <textarea name="description" class="form-textarea" style="min-height:80px" placeholder="What do you need built?"></textarea>
+      </div>
+      <button type="submit" class="form-submit">Send Quote Request</button>
+    </form>
+  </div>
+</div>
+
+<script>
+// CANVAS
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, dots;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  initDots();
+}
+
+function initDots() {
+  dots = Array.from({length: 75}, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.5 + 0.3,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    a: Math.random() * 0.4 + 0.1
+  }));
+}
+
+function drawBg() {
+  ctx.clearRect(0, 0, W, H);
+  // Grid lines
+  ctx.strokeStyle = 'rgba(88,101,242,0.04)';
+  ctx.lineWidth = 1;
+  const gs = 60;
+  for (let x = 0; x < W; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // Dots + connections
+  dots.forEach((d, i) => {
+    d.x += d.vx; d.y += d.vy;
+    if (d.x < 0) d.x = W; if (d.x > W) d.x = 0;
+    if (d.y < 0) d.y = H; if (d.y > H) d.y = 0;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(88,101,242,${d.a})`;
+    ctx.fill();
+    for (let j = i + 1; j < dots.length; j++) {
+      const d2 = dots[j];
+      const dx = d.x - d2.x, dy = d.y - d2.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 100) {
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d2.x, d2.y);
+        ctx.strokeStyle = `rgba(88,101,242,${0.06 * (1 - dist/100)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  });
+  requestAnimationFrame(drawBg);
+}
+
+resize();
+window.addEventListener('resize', resize);
+drawBg();
+
+// NAV
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+});
+
+function toggleMenu() {
+  document.getElementById('navLinks').classList.toggle('open');
+}
+
+document.querySelectorAll('.nav-links a').forEach(a => {
+  a.addEventListener('click', () => document.getElementById('navLinks').classList.remove('open'));
+});
+
+// REVEAL
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  });
+}, {threshold: 0.1});
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Stagger grid items
+document.querySelectorAll('.services-grid .reveal, .portfolio-grid .reveal, .pricing-grid .reveal, .testimonials-grid .reveal').forEach((el, i) => {
+  el.style.transitionDelay = `${(i % 3) * 0.1}s`;
+});
+
+// FAQ
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const open = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+  if (!open) item.classList.add('open');
+}
+
+// MODAL
+function openModal() {
+  document.getElementById('quoteModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('quoteModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('quoteModal')) closeModal();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
